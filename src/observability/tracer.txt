@@ -1,0 +1,131 @@
+import json
+import logging
+import time
+import os
+import urllib.request
+import urllib.error
+import threading
+import socket
+from copy import deepcopy
+
+logger = logging.getLogger("Tracer")
+logger.setLevel(logging.INFO)
+
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter('%(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
+LOKI_ENDPOINT = os.getenv("LOKI_ENDPOINT", "http://loki:3100/loki/api/v1/push")
+
+# Aislamiento de Streams: Usamos el ID del contenedor (Hostname) 
+# para que Loki trate los logs de Brain y Vision como flujos paralelos independientes.
+WORKER_ID = os.getenv("HOSTNAME", socket.gethostname())
+
+def _push_to_loki(log_data: dict):
+    # Etiquetas base para el stream
+    labels = {
+        "job": "jarvis-agent",
+        "worker": WORKER_ID,
+        "level": "info"
+    }
+    
+    # Si el log trae información del modelo, lo promovemos a etiqueta (label)
+    # para permitir filtrado dinámico eficiente en Grafana.
+    if "model" in log_data:
+        labels["model"] = log_data["model"]
+
+    payload = {
+        "streams": [
+            {
+                "stream": labels,
+                "values": [
+                    [str(int(time.time() * 1e9)), json.dumps(log_data)]
+                ]
+            }
+        ]
+    }
+    
+    try:
+        req = urllib.request.Request(
+            LOKI_ENDPOINT,
+            data=json.dumps(payload).encode('utf-8'),
+            headers={"Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(req, timeout=5) as response:
+            pass # Petición exitosa
+            
+    except urllib.error.HTTPError as e:
+        # Extraemos el cuerpo del error donde Loki explica por qué rechazó el log
+        error_body = e.read().decode('utf-8')
+        print(f"🚨 [Tracer] Loki HTTP {e.code} ({WORKER_ID}): {error_body}")
+    except Exception as e:
+        print(f"🚨 [Tracer] Fallo de red hacia Loki ({WORKER_ID}): {e}")
+
+class AgentTracer:
+    @staticmethod
+    def _emit(data: dict):
+        # Desacople: Copia profunda para no mutar el dict del proceso principal
+        safe_data = deepcopy(data)
+        logger.info(json.dumps(safe_data))
+        
+        # En una arquitectura puramente Asyncio, esto bloquea levemente, 
+        # pero para logs asíncronos de bajo volumen, un hilo daemon es aceptable.
+        threading.Thread(target=_push_to_loki, args=(safe_data,), daemon=True).start()
+
+    @staticmethod
+    def trace_preflight_check(results: dict):
+        trace_data = {
+            "event_type": "preflight_check",
+            "results": deepcopy(results),
+            "timestamp": time.time(),
+        }
+        AgentTracer._emit(trace_data)
+
+    @staticmethod
+    def trace_evaluation(results: dict):
+        trace_data = deepcopy(results)
+        trace_data["event_type"] = "email_evaluation" 
+        trace_data["timestamp"] = time.time()
+        AgentTracer._emit(trace_data)
+
+    @staticmethod
+    def log_telemetry(model: str, prompt_tokens: int, completion_tokens: int, latency_ms: float, status: str, api_key_id: str):
+        total_tokens = prompt_tokens + completion_tokens
+        telemetry_data = {
+            "event_type": "llm_telemetry",
+            "model": model,
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total_tokens": total_tokens,
+            "api_key": api_key_id,
+            "latency": round(latency_ms, 2),
+            "status": status,
+            "timestamp": time.time(),
+        }
+        AgentTracer._emit(telemetry_data)
+
+    @staticmethod
+    def trace_thought(action: str, reasoning: str, model: str, token_count: int, latency_ms: float):
+        trace_data = {
+            "event_type": "agent_thought",
+            "action": action,
+            "reasoning": reasoning,
+            "model": model,
+            "token_count": token_count,
+            "latency_ms": round(latency_ms, 2),
+            "timestamp": time.time(),
+        }
+        AgentTracer._emit(trace_data)
+
+    @staticmethod
+    def log_infrastructure_error(engine: str, message: str):
+        error_data = {
+            "event_type": "infrastructure_error",
+            "engine": engine,
+            "message": message,
+            "timestamp": time.time(),
+        }
+        logger.error(json.dumps(error_data))
+        threading.Thread(target=_push_to_loki, args=(error_data,), daemon=True).start()

@@ -1,0 +1,14 @@
+apiVersion: 1
+
+providers:
+  - name: "C-Level & Tactical Dashboards"
+    orgId: 1
+    folder: "Executive Observability"
+    type: file
+    disableDeletion: false
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/dashboards
+      # forceOverwrite=false: preserve UI changes on restart.
+      # Cambios manuales en Grafana se guardan en la DB y sobreviven al reinicio.
+      forceOverwrite: false

@@ -1,0 +1,1162 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 50,
+      "panels": [],
+      "title": "Indicadores Clave Ejecutivos (KPIs)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "Loki" },
+      "description": "Volumen total de correos electrónicos evaluados por el sistema de triage",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "#4AF626" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [ { "color": "green", "value": null } ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "id": 31,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "Loki" },
+          "editorMode": "code",
+          "expr": "sum(count_over_time({job=\"jarvis-agent\"} | json | event_type=\"tactical\" | json action=\"data.action\", decision=\"data.decision\", sender=\"data.sender\", model=\"data.model\", total_tokens=\"data.total_tokens\", latency_ms=\"data.latency_ms\", status=\"data.status\" | action=\"email_evaluation\" [$__range]))",
+          "legendFormat": "Total",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Total de Evaluaciones",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "Loki" },
+      "description": "Total de llamadas a APIs LLM realizadas en el per\u00edodo",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "#FF9830" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [ { "color": "orange", "value": null } ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+      "id": 35,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "Loki" },
+          "editorMode": "code",
+          "expr": "sum(count_over_time({job=\"jarvis-agent\"} | json | event_type=\"tactical\" | json action=\"data.action\", decision=\"data.decision\", sender=\"data.sender\", model=\"data.model\", total_tokens=\"data.total_tokens\", latency_ms=\"data.latency_ms\", status=\"data.status\" | action=\"llm_telemetry\" [$__range]))",
+          "legendFormat": "Total Llamadas",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Total de Llamadas LLM",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "Loki" },
+      "description": "Latencia promedio de inferencia LLM en milisegundos",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#4AF626", "value": null },
+              { "color": "#EAB839", "value": 5000 },
+              { "color": "#E61919", "value": 10000 }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+      "id": 36,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["mean"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "Loki" },
+          "editorMode": "code",
+          "expr": "avg(avg_over_time({job=\"jarvis-agent\"} | json | event_type=\"tactical\" | json action=\"data.action\", decision=\"data.decision\", sender=\"data.sender\", model=\"data.model\", total_tokens=\"data.total_tokens\", latency_ms=\"data.latency_ms\", status=\"data.status\" | action=\"llm_telemetry\" | unwrap latency_ms [$__range]))",
+          "legendFormat": "Latencia Promedio",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Latencia Promedio (ms)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "Loki" },
+      "description": "Total de tokens consumidos por todas las llamadas LLM en el per\u00edodo",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "#4A9EF5" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [ { "color": "blue", "value": null } ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+      "id": 37,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "Loki" },
+          "editorMode": "code",
+          "expr": "sum(sum_over_time({job=\"jarvis-agent\"} | json | event_type=\"tactical\" | json action=\"data.action\", decision=\"data.decision\", sender=\"data.sender\", model=\"data.model\", total_tokens=\"data.total_tokens\", latency_ms=\"data.latency_ms\", status=\"data.status\" | action=\"llm_telemetry\" | unwrap total_tokens [$__range]))",
+          "legendFormat": "Total Tokens",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Total de Tokens Consumidos",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "id": 51,
+      "panels": [],
+      "title": "KPIs Financieros y de Rendimiento (FinOps)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "Loki" },
+      "description": "Costo total estimado basado en tokens consumidos. Tarifa estimada: $0.25 por mill\u00f3n de tokens (modelo Gemini 3.5 Flash)",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "#73BF69" },
+          "decimals": 4,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [ { "color": "green", "value": null } ]
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 6 },
+      "id": 52,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "Loki" },
+          "editorMode": "code",
+          "expr": "sum(sum_over_time({job=\"jarvis-agent\"} | json | event_type=\"tactical\" | json action=\"data.action\", decision=\"data.decision\", sender=\"data.sender\", model=\"data.model\", total_tokens=\"data.total_tokens\", latency_ms=\"data.latency_ms\", status=\"data.status\" | action=\"llm_telemetry\" | unwrap total_tokens [$__range]))",
+          "legendFormat": "Total Tokens",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Costo Total Estimado (USD)",
+      "transformations": [
+        {
+          "id": "math",
+          "expression": "$A * 0.00000025"
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Value": true
+            },
+            "indexByName": {},
+            "renameByName": {
+              "Expression": "Costo Estimado (USD)"
+            }
+          }
+        }
+      ],
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "Loki" },
+      "description": "Costo promedio estimado por cada 1,000 solicitudes LLM",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "#F4D03F" },
+          "decimals": 6,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [ { "color": "yellow", "value": null } ]
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 6 },
+      "id": 53,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "Loki" },
+          "editorMode": "code",
+          "expr": "sum(sum_over_time({job=\"jarvis-agent\"} | json | event_type=\"tactical\" | json action=\"data.action\", decision=\"data.decision\", sender=\"data.sender\", model=\"data.model\", total_tokens=\"data.total_tokens\", latency_ms=\"data.latency_ms\", status=\"data.status\" | action=\"llm_telemetry\" | unwrap total_tokens [$__range]))",
+          "legendFormat": "Total Tokens",
+          "queryType": "range",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "loki", "uid": "Loki" },
+          "editorMode": "code",
+          "expr": "sum(count_over_time({job=\"jarvis-agent\"} | json | event_type=\"tactical\" | json action=\"data.action\", decision=\"data.decision\", sender=\"data.sender\", model=\"data.model\", total_tokens=\"data.total_tokens\", latency_ms=\"data.latency_ms\", status=\"data.status\" | action=\"llm_telemetry\" [$__range]))",
+          "legendFormat": "Total Llamadas",
+          "queryType": "range",
+          "refId": "B"
+        }
+      ],
+      "title": "Costo Promedio por 1K Solicitudes (USD)",
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "Costo por 1K (USD)",
+            "binary": {
+              "left": "Value #A",
+              "operator": "/",
+              "right": "Value #B"
+            },
+            "mode": "binaryArithmetic"
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "Resultado Final",
+            "binary": {
+              "left": "Costo por 1K (USD)",
+              "operator": "*",
+              "right": "0.00025"
+            },
+            "mode": "binaryArithmetic"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Value #A": true,
+              "Value #B": true,
+              "Costo por 1K (USD)": true
+            },
+            "indexByName": {},
+            "renameByName": {
+              "Resultado Final": "Costo Promedio"
+            }
+          }
+        }
+      ],
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "Loki" },
+      "description": "Percentil 95 de latencia de inferencia LLM. El 95% de las solicitudes fueron m\u00e1s r\u00e1pidas que este valor.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#4AF626", "value": null },
+              { "color": "#EAB839", "value": 8000 },
+              { "color": "#E61919", "value": 15000 }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 6 },
+      "id": 54,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "Loki" },
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.95, {job=\"jarvis-agent\"} | json | event_type=\"tactical\" | json action=\"data.action\", decision=\"data.decision\", sender=\"data.sender\", model=\"data.model\", total_tokens=\"data.total_tokens\", latency_ms=\"data.latency_ms\", status=\"data.status\" | action=\"llm_telemetry\" | unwrap latency_ms [$__range])",
+          "legendFormat": "p95",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Latencia p95 (ms)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "Loki" },
+      "description": "Percentil 99 de latencia de inferencia LLM. El 99% de las solicitudes fueron m\u00e1s r\u00e1pidas que este valor (cola de la distribuci\u00f3n).",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#4AF626", "value": null },
+              { "color": "#EAB839", "value": 12000 },
+              { "color": "#E61919", "value": 20000 }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 6 },
+      "id": 55,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "Loki" },
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.99, {job=\"jarvis-agent\"} | json | event_type=\"tactical\" | json action=\"data.action\", decision=\"data.decision\", sender=\"data.sender\", model=\"data.model\", total_tokens=\"data.total_tokens\", latency_ms=\"data.latency_ms\", status=\"data.status\" | action=\"llm_telemetry\" | unwrap latency_ms [$__range])",
+          "legendFormat": "p99",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Latencia p99 (ms)",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 10 },
+      "id": 56,
+      "panels": [],
+      "title": "Estado de la Infraestructura LLM",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "Loki" },
+      "description": "Porcentaje de llamadas LLM que resultaron en error sobre el total de solicitudes",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "max": 100,
+          "min": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#4AF626", "value": null },
+              { "color": "#EAB839", "value": 5 },
+              { "color": "#E61919", "value": 15 }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 11 },
+      "id": 57,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "Loki" },
+          "editorMode": "code",
+          "expr": "sum(count_over_time({job=\"jarvis-agent\"} | json | event_type=\"tactical\" | json action=\"data.action\", decision=\"data.decision\", sender=\"data.sender\", model=\"data.model\", total_tokens=\"data.total_tokens\", latency_ms=\"data.latency_ms\", status=\"data.status\" | action=\"infrastructure_error\" [$__range]))",
+          "legendFormat": "Errores",
+          "queryType": "range",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "loki", "uid": "Loki" },
+          "editorMode": "code",
+          "expr": "sum(count_over_time({job=\"jarvis-agent\"} | json | event_type=\"tactical\" | json action=\"data.action\", decision=\"data.decision\", sender=\"data.sender\", model=\"data.model\", total_tokens=\"data.total_tokens\", latency_ms=\"data.latency_ms\", status=\"data.status\" | action=\"llm_telemetry\" [$__range]))",
+          "legendFormat": "Total",
+          "queryType": "range",
+          "refId": "B"
+        }
+      ],
+      "title": "Tasa de Error en API LLM",
+      "transformations": [
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "Tasa de Error (%)",
+            "binary": {
+              "left": "Value #A",
+              "operator": "/",
+              "right": "Value #B"
+            },
+            "mode": "binaryArithmetic"
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "Porcentaje Final",
+            "binary": {
+              "left": "Tasa de Error (%)",
+              "operator": "*",
+              "right": "100"
+            },
+            "mode": "binaryArithmetic"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Value #A": true,
+              "Value #B": true,
+              "Tasa de Error (%)": true
+            },
+            "indexByName": {},
+            "renameByName": {
+              "Porcentaje Final": "Error %"
+            }
+          }
+        }
+      ],
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "Loki" },
+      "description": "N\u00famero de eventos de failover/fallback registrados. Ocurren cuando el proveedor primario falla y se redirige el tr\u00e1fico a un modelo de respaldo.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "#4AF626", "value": null },
+              { "color": "#EAB839", "value": 5 },
+              { "color": "#E61919", "value": 20 }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 11 },
+      "id": 58,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "Loki" },
+          "editorMode": "code",
+          "expr": "sum(count_over_time({job=\"jarvis-agent\"} | json | event_type=\"tactical\" | json action=\"data.action\", decision=\"data.decision\", sender=\"data.sender\", model=\"data.model\", total_tokens=\"data.total_tokens\", latency_ms=\"data.latency_ms\", status=\"data.status\" | action=\"infrastructure_error\" [$__range]))",
+          "legendFormat": "Fallbacks",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Eventos de Fallback/Failover",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "Loki" },
+      "description": "Solicitudes bloqueadas por pol\u00edticas de seguridad, detecci\u00f3n de PII o intentos de inyecci\u00f3n de prompts. Requiere instrumentaci\u00f3n adicional en el aplicativo.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "#FF4D4D" },
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "text",
+                  "text": "0 — Sin datos"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [ { "color": "green", "value": null } ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 11 },
+      "id": 59,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "title": "Solicitudes Bloqueadas (Guardrails)",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 15 },
+      "id": 38,
+      "panels": [],
+      "title": "An\u00e1lisis Operativo",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "Loki" },
+      "description": "Distribuci\u00f3n de decisiones de clasificaci\u00f3n de correos electr\u00f3nicos",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [ { "color": "green", "value": null } ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 16 },
+      "id": 39,
+      "options": {
+        "displayLabels": ["percent", "value"],
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "values": ["value"]
+        },
+        "pieType": "donut",
+        "reduceOptions": {
+          "calcs": ["sum"],
+          "fields": "",
+          "values": false
+        },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "Loki" },
+          "editorMode": "code",
+          "expr": "sum by (decision) (count_over_time({job=\"jarvis-agent\"} | json | event_type=\"email_evaluation\" | decision != \"\" [$__range]))",
+          "legendFormat": "{{decision}}",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Distribuci\u00f3n de Decisiones",
+      "type": "piechart"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "Loki" },
+      "description": "Consumo de tokens desglosado por modelo LLM a lo largo del tiempo",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "normal" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [ { "color": "green", "value": null } ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 16 },
+      "id": 40,
+      "options": {
+        "legend": {
+          "calcs": ["sum", "max"],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "Loki" },
+          "editorMode": "code",
+          "expr": "sum by (model) (sum_over_time({job=\"jarvis-agent\"} | json | event_type=\"tactical\" | json action=\"data.action\", decision=\"data.decision\", sender=\"data.sender\", model=\"data.model\", total_tokens=\"data.total_tokens\", latency_ms=\"data.latency_ms\", status=\"data.status\" | action=\"llm_telemetry\" | unwrap total_tokens [$__interval]))",
+          "legendFormat": "{{model}}",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Consumo de Tokens por Modelo",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "Loki" },
+      "description": "Latencia de inferencia LLM por modelo. La l\u00ednea roja marca el SLA m\u00e1ximo aceptable (10s).",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 3,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "auto",
+            "spanNulls": true,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "dashed" }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "#E61919", "value": 10000 }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 16 },
+      "id": 41,
+      "options": {
+        "legend": {
+          "calcs": ["mean", "max"],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "Loki" },
+          "editorMode": "code",
+          "expr": "avg by (model) (avg_over_time({job=\"jarvis-agent\"} | json | event_type=\"tactical\" | json action=\"data.action\", decision=\"data.decision\", sender=\"data.sender\", model=\"data.model\", total_tokens=\"data.total_tokens\", latency_ms=\"data.latency_ms\", status=\"data.status\" | action=\"llm_telemetry\" | unwrap latency_ms [$__interval]))",
+          "legendFormat": "{{model}}",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Tendencia de Latencia LLM por Modelo (ms)",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 24 },
+      "id": 60,
+      "panels": [],
+      "title": "Monitoreo Avanzado de Infraestructura",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "Loki" },
+      "description": "Consumo de tokens desglosado por clave API para identificar departamentos o servicios con mayor gasto",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "normal" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [ { "color": "green", "value": null } ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 25 },
+      "id": 61,
+      "options": {
+        "legend": {
+          "calcs": ["sum"],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "Loki" },
+          "editorMode": "code",
+          "expr": "sum by (api_key_id) (sum_over_time({job=\"jarvis-agent\"} | json | event_type=\"tactical\" | json action=\"data.action\", decision=\"data.decision\", sender=\"data.sender\", model=\"data.model\", total_tokens=\"data.total_tokens\", latency_ms=\"data.latency_ms\", status=\"data.status\", api_key_id=\"data.api_key_id\" | action=\"llm_telemetry\" | unwrap total_tokens [$__interval]))",
+          "legendFormat": "{{api_key_id}}",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Consumo de Tokens por Clave API",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "Loki" },
+      "description": "Tasa de errores de infraestructura LLM a lo largo del tiempo",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [ { "color": "green", "value": null } ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 25 },
+      "id": 62,
+      "options": {
+        "legend": {
+          "calcs": ["sum"],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "Loki" },
+          "editorMode": "code",
+          "expr": "sum(count_over_time({job=\"jarvis-agent\"} | json | event_type=\"tactical\" | json action=\"data.action\", decision=\"data.decision\", sender=\"data.sender\", model=\"data.model\", total_tokens=\"data.total_tokens\", latency_ms=\"data.latency_ms\", status=\"data.status\" | action=\"infrastructure_error\" [$__interval]))",
+          "legendFormat": "Errores de Infraestructura",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Errores de Infraestructura LLM",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "Loki" },
+      "description": "Rendimiento de evaluaciones y estado de salud del proveedor a lo largo del tiempo",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "normal" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [ { "color": "green", "value": null } ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 25 },
+      "id": 63,
+      "options": {
+        "legend": {
+          "calcs": ["sum"],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "Loki" },
+          "editorMode": "code",
+          "expr": "sum(count_over_time({job=\"jarvis-agent\"} | json | event_type=\"tactical\" | json action=\"data.action\", decision=\"data.decision\", sender=\"data.sender\", model=\"data.model\", total_tokens=\"data.total_tokens\", latency_ms=\"data.latency_ms\", status=\"data.status\" | action=\"preflight_check\" [$__interval]))",
+          "legendFormat": "Verificaciones de Salud",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Verificaciones de Salud del Proveedor",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 33 },
+      "id": 64,
+      "panels": [],
+      "title": "Actividad de Evaluaci\u00f3n",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "Loki" },
+      "description": "Volumen de actividad de evaluaci\u00f3n de correos desglosado por tipo de decisi\u00f3n",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": { "group": "A", "mode": "normal" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [ { "color": "green", "value": null } ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 34 },
+      "id": 42,
+      "options": {
+        "legend": {
+          "calcs": ["sum"],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "Loki" },
+          "editorMode": "code",
+          "expr": "sum by (decision) (count_over_time({job=\"jarvis-agent\"} | json | event_type=\"email_evaluation\" | decision != \"\" [$__interval]))",
+          "legendFormat": "{{decision}}",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Actividad de Evaluaci\u00f3n por Decisi\u00f3n",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": ["clevel", "cto", "finops", "observabilidad", "espanol"],
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "datasource": { "type": "loki", "uid": "Loki" },
+        "hide": 0,
+        "includeAll": true,
+        "label": "Modelo",
+        "multi": false,
+        "name": "model",
+        "options": [],
+        "query": {
+          "label": "model",
+          "query": "label_values({job=\"jarvis-agent\"}, model)",
+          "refId": "LokiVariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {},
+        "datasource": { "type": "loki", "uid": "Loki" },
+        "hide": 0,
+        "includeAll": true,
+        "label": "Decisi\u00f3n",
+        "multi": false,
+        "name": "decision",
+        "options": [],
+        "query": {
+          "label": "decision",
+          "query": "label_values({job=\"jarvis-agent\"} | json | event_type=\"tactical\" | json decision=\"data.decision\" | decision != \"\", decision)",
+          "refId": "LokiVariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s", "10s", "30s", "1m", "5m", "15m", "30m", "1h", "2h", "1d"
+    ]
+  },
+  "timezone": "browser",
+  "title": "Panel de Control Ejecutivo — CTO",
+  "uid": "clevel-tactical-01",
+  "version": 7
+}

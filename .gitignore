@@ -1,0 +1,58 @@
+# ============================================
+# 🛑 SECRETOS Y CREDENCIALES
+# ============================================
+secrets/
+.env
+create_secrets.sh
+config/msal_token_cache.json
+*.pem
+*.key
+
+# ============================================
+# 📦 ENTORNO VIRTUAL Y CACHÉ
+# ============================================
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+venv/
+.venv/
+env/
+
+# ============================================
+# ⚙️ HERRAMIENTAS Y DATOS LOCALES
+# ============================================
+.vscode/
+.opencode/
+.agents/
+.agent/
+.AttachedGemini/
+AttachedGemini/
+playwright_data/
+scratch/
+data/
+logs/
+APISDOCS/
+Otros/
+dist/
+build/
+.next/
+.turbo/
+node_modules/
+
+# ============================================
+# 📄 ARCHIVOS TEMPORALES
+# ============================================
+*.log
+
+**/node_modules/
+node_modules/
+
+**/node_modules/
+node_modules/
+
+# Metadatos locales de agentes
+.atl/
+.opencode/
+APISDOCS/
+src/APIsDOCS/

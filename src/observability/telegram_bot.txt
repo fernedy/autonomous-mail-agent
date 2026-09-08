@@ -1,0 +1,152 @@
+import os
+import json
+import urllib.request
+import threading
+import time
+import logging
+import asyncio
+import html
+
+logger = logging.getLogger("TelegramBot")
+
+class TelegramBot:
+    def __init__(self, action_queue: asyncio.Queue, loop: asyncio.AbstractEventLoop):
+        self.token = os.getenv("TELEGRAM_BOT_TOKEN")
+        self.chat_id = os.getenv("TELEGRAM_CHAT_ID")
+        self.base_url = f"https://api.telegram.org/bot{self.token}"
+        self.offset = 0
+        self.action_queue = action_queue
+        self.loop = loop
+        
+        # MEMORIAS INTERNAS: Para mapear el texto de Telegram con los datos reales del DOM y Grafana
+        self.draft_memory = {} 
+        self.subject_memory = {} 
+        self.sender_memory = {} # <-- NUEVA: Guarda el remitente original para actualizar Loki
+
+    def _make_request(self, method: str, payload: dict = None):
+        if not self.token or not self.chat_id: return None
+        url = f"{self.base_url}/{method}"
+        timeout = 35 if method == "getUpdates" else 15
+        try:
+            if payload:
+                data = json.dumps(payload).encode('utf-8')
+                req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
+            else:
+                req = urllib.request.Request(url)
+            with urllib.request.urlopen(req, timeout=timeout) as response:
+                return json.loads(response.read().decode())
+        except urllib.error.HTTPError as e:
+            body = e.read().decode()
+            if "message is not modified" in body.lower() or "query is too old" in body.lower(): return None
+            logger.error(f"Telegram API HTTP Error {e.code} en {method}: {body}")
+            return None
+        except Exception as e:
+            if method == "getUpdates" and "timed out" in str(e).lower(): pass  
+            elif "[Errno 101]" in str(e) or "Network is unreachable" in str(e):
+                logger.warning(f"Falla de red: Network is unreachable [Errno 101]")
+            else: logger.error(f"Telegram API error en {method}: {e}")
+            return None
+
+    async def send_raw_message(self, text: str):
+        if not self.token or not self.chat_id: return
+        payload = {"chat_id": self.chat_id, "text": text, "parse_mode": "HTML"}
+        self._make_request("sendMessage", payload)
+
+    def send_approval_request(self, conv_id: str, email_subject: str, sender: str, reasoning: str, draft_text: str):
+        """Envía solicitud HITL guardando ID y Remitente en memoria interna."""
+        if not self.token or not self.chat_id: return
+
+        preview = html.escape(draft_text[:500] + ("..." if len(draft_text) > 500 else ""))
+        context_preview = html.escape(reasoning[:300] + ("..." if len(reasoning) > 300 else ""))
+        clean_subject = html.escape(email_subject)
+        clean_sender = html.escape(sender)
+        
+        is_existing = "[EXISTING_DRAFT]" in draft_text or "[Borrador en Outlook]" in draft_text
+        header = "⚠️ <b>Borrador Existente Detectado</b>" if is_existing else "🤖 <b>Nuevo Borrador HITL</b>"
+        
+        text = (f"{header}\n\n<b>Correo:</b> {clean_subject}\n<b>Remitente:</b> {clean_sender}\n\n"
+                f"<b>Contexto / Análisis:</b>\n<i>{context_preview}</i>\n\n<b>Borrador:</b>\n<pre>{preview}</pre>\n\n¿Deseas procesar este correo?")
+        
+        def safe_truncate(prefix, text_to_trunc):
+            full = f"{prefix}|{text_to_trunc}"
+            if len(full.encode('utf-8')) <= 64: return full
+            truncated = text_to_trunc
+            while len(f"{prefix}|{truncated}".encode('utf-8')) > 64: truncated = truncated[:-1]
+            return f"{prefix}|{truncated}"
+
+        callback_id_approve = safe_truncate("approve", email_subject)
+        trunc_key = callback_id_approve.split("|")[1]
+        
+        # PERSISTENCIA EN CACHÉ
+        self.draft_memory[trunc_key] = conv_id
+        self.subject_memory[trunc_key] = email_subject
+        self.sender_memory[trunc_key] = sender # <-- Guardamos al remitente real
+            
+        callback_id_reject = safe_truncate("reject", email_subject)
+        callback_id_discard = safe_truncate("discard", email_subject)
+            
+        keyboard = {"inline_keyboard": [
+            [{"text": "✅ Aprobar y Enviar", "callback_data": callback_id_approve}, {"text": "❌ Dejar en Bandeja", "callback_data": callback_id_reject}],
+            [{"text": "🗑️ Descartar y Marcar Leído", "callback_data": callback_id_discard}]
+        ]}
+        
+        self._make_request("sendMessage", {"chat_id": self.chat_id, "text": text, "parse_mode": "HTML", "reply_markup": keyboard})
+
+    def _poll(self):
+        while True:
+            try:
+                if not self.token:
+                    time.sleep(10)
+                    continue
+                updates = self._make_request("getUpdates", {"offset": self.offset, "timeout": 10})
+                
+                if updates and "result" in updates:
+                    for update in updates["result"]:
+                        self.offset = update["update_id"] + 1
+                        if "callback_query" in update:
+                            cq = update["callback_query"]
+                            data = cq.get("data", "")
+                            query_id = cq.get("id")
+                            message_id = cq.get("message", {}).get("message_id")
+                            
+                            action = "unknown"
+                            trunc_subject = "desconocido"
+                            if "|" in data: action, trunc_subject = data.split("|", 1)
+                            
+                            # RECUPERACIÓN DE MEMORIA
+                            conv_id = self.draft_memory.get(trunc_subject)
+                            full_subject = self.subject_memory.get(trunc_subject, trunc_subject)
+                            original_sender = self.sender_memory.get(trunc_subject, "SISTEMA") # <-- Recuperamos al remitente
+                                
+                            if action == "approve":
+                                logger.info(f"Telegram Callback: Aprobado envío de {full_subject}")
+                                self.loop.call_soon_threadsafe(self.action_queue.put_nowait, 
+                                    {"type": "send_draft", "conv_id": conv_id, "subject": full_subject, "sender": original_sender})
+                                status_text = "✅ Aprobado y enviado."
+                            elif action == "discard":
+                                logger.info(f"Telegram Callback: Descartar y marcar leído {full_subject}")
+                                self.loop.call_soon_threadsafe(self.action_queue.put_nowait, 
+                                    {"type": "discard_draft", "conv_id": conv_id, "subject": full_subject, "sender": original_sender})
+                                status_text = "🗑️ Descartado y marcado como leído (Noise)."
+                            elif action == "reject":
+                                logger.info(f"Telegram Callback: Rechazado envío de {full_subject}")
+                                self.loop.call_soon_threadsafe(self.action_queue.put_nowait, 
+                                    {"type": "return_to_inbox", "conv_id": conv_id, "subject": full_subject, "sender": original_sender})
+                                status_text = "❌ Rechazado. Se mantiene en bandeja."
+                            else:
+                                status_text = "Acción procesada."
+                                
+                            self._make_request("answerCallbackQuery", {"callback_query_id": query_id, "text": "OK"})
+                            if message_id:
+                                self._make_request("editMessageText", {
+                                    "chat_id": self.chat_id, "message_id": message_id,
+                                    "text": f"{html.escape(cq.get('message', {}).get('text', ''))}\n\n<b>ESTADO:</b> {status_text}", "parse_mode": "HTML"
+                                })
+            except Exception as e:
+                logger.debug(f"Telegram Polling error: {e}")
+            time.sleep(2)
+
+    def start_polling(self):
+        if self.token and self.chat_id:
+            logger.info("Iniciando escucha de Telegram (Long-Polling) para HITL...")
+            threading.Thread(target=self._poll, daemon=True).start()

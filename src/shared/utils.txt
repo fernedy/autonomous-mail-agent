@@ -1,0 +1,14 @@
+# [src/shared/utils.py]
+import os
+
+def load_secret(secret_name: str, default: str = None) -> str:
+    """Lee un secreto desde Docker Secrets o cae a Variables de Entorno."""
+    # Ruta estándar de Docker Secrets
+    secret_path = f"/run/secrets/{secret_name.lower()}"
+    
+    if os.path.exists(secret_path):
+        with open(secret_path, "r") as f:
+            return f.read().strip()
+    
+    # Fallback al .env si no estamos en modo Swarm/Secrets
+    return os.getenv(secret_name.upper(), default)

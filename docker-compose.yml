@@ -1,0 +1,218 @@
+services:
+  redis:
+    image: redis:7.2-alpine
+    container_name: jarvis_broker
+    command: >
+      sh -c "redis-server --appendonly yes --requirepass $$(cat /run/secrets/redis_pass)"
+    secrets:
+      - redis_pass
+    volumes:
+      - redis_data:/data
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    networks:
+      - internal_mesh
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "$$(cat /run/secrets/redis_pass)", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  brain:
+    restart: on-failure
+    tty: true
+    stdin_open: true
+    build: 
+      context: .
+      dockerfile: ./docker/brain.Dockerfile
+    image: jarvis-brain:v5.3
+    container_name: jarvis_brain
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - internal_mesh
+      - jarvis_outbound
+    secrets:
+      - redis_pass
+      - graph_client_secret
+    env_file: .env
+    volumes:
+      - ./config:/app/config:rw
+    environment:
+      - REDIS_PASS_FILE=/run/secrets/redis_pass
+      - LOKI_ENDPOINT=${LOKI_ENDPOINT:-http://host.docker.internal:3100/loki/api/v1/push}
+      - TENANT_ID=${TENANT_ID:-default}
+      # v6.0: Graph API por Client Credentials (único método de conexión)
+      - GRAPH_TENANT_ID=${GRAPH_TENANT_ID:-default}
+      - GRAPH_CLIENT_ID=${GRAPH_CLIENT_ID:-}
+      - GRAPH_CLIENT_SECRET_FILE=/run/secrets/graph_client_secret
+      - GRAPH_MAILBOX_UPN=${GRAPH_MAILBOX_UPN:-}
+      # v6.0: LLM Router Gateway embebido — integración tipo API OpenAI
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      - LLM_GATEWAY_MODEL=${LLM_GATEWAY_MODEL:-gpt-4o-mini}
+      - LLM_GATEWAY_MODEL_TRIAGE=${LLM_GATEWAY_MODEL_TRIAGE:-}
+      - LLM_GATEWAY_MODEL_UI=${LLM_GATEWAY_MODEL_UI:-}
+      - LLM_GATEWAY_MODEL_PROFILE=${LLM_GATEWAY_MODEL_PROFILE:-}
+
+  vision-worker:
+    build:
+      context: .
+      dockerfile: ./docker/vision.Dockerfile
+    image: jarvis-vision:v6.0
+    container_name: jarvis_vision
+    restart: on-failure
+    # v6.0: Graph API por OAuth2 Client Credentials (app-only, desatendido)
+    # Configurar GRAPH_TENANT_ID, GRAPH_CLIENT_ID, GRAPH_MAILBOX_UPN y el
+    # secret graph_client_secret. Sin device code, sin MFA interactivo.
+    # v5.2: Multi-Tenant. Para multi-tenant: crear servicios duplicados
+    # con distintos GRAPH_TENANT_ID / GRAPH_MAILBOX_UPN
+    # Sin Playwright. Sin Chromium. Sin VNC.
+    # Recursos minimos: CPU 0.25, RAM 256MB.
+    # v5.3j: Loki independiente. Configurable via LOKI_ENDPOINT en .env
+    tty: true
+    stdin_open: true
+    env_file: .env
+    environment:
+      - REDIS_PASS_FILE=/run/secrets/redis_pass
+      - LOKI_ENDPOINT=${LOKI_ENDPOINT:-http://host.docker.internal:3100/loki/api/v1/push}
+      - TENANT_ID=${TENANT_ID:-default}
+      # v6.0: Graph API por Client Credentials (único método de conexión)
+      - GRAPH_TENANT_ID=${GRAPH_TENANT_ID:-default}
+      - GRAPH_CLIENT_ID=${GRAPH_CLIENT_ID:-}
+      - GRAPH_CLIENT_SECRET_FILE=/run/secrets/graph_client_secret
+      - GRAPH_MAILBOX_UPN=${GRAPH_MAILBOX_UPN:-}
+      # v6.0: LLM Router Gateway embebido — integración tipo API OpenAI
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      - LLM_GATEWAY_MODEL=${LLM_GATEWAY_MODEL:-gpt-4o-mini}
+      - LLM_GATEWAY_MODEL_TRIAGE=${LLM_GATEWAY_MODEL_TRIAGE:-}
+      - LLM_GATEWAY_MODEL_UI=${LLM_GATEWAY_MODEL_UI:-}
+      - LLM_GATEWAY_MODEL_PROFILE=${LLM_GATEWAY_MODEL_PROFILE:-}
+    secrets:
+      - redis_pass
+      - graph_client_secret
+    volumes:
+      - ./config:/app/config:rw
+    networks:
+      - internal_mesh
+      - jarvis_outbound
+    depends_on:
+      redis:
+        condition: service_healthy
+      notifier:
+        condition: service_started
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  notifier:
+    build:
+      context: .
+      dockerfile: ./docker/notifier.Dockerfile
+    image: jarvis-notifier:v5.3g
+    container_name: jarvis_notifier
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - internal_mesh
+      - jarvis_outbound
+    secrets:
+      - redis_pass
+      - telegram_bot_token
+      - telegram_chat_id
+    env_file: .env
+    environment:
+      - REDIS_PASS_FILE=/run/secrets/redis_pass
+
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: jarvis_postgres
+    environment:
+      POSTGRES_USER: jarvis
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_pass
+      POSTGRES_DB: jarvis
+    secrets:
+      - postgres_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - internal_mesh
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jarvis"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: ./docker/web.Dockerfile
+    image: jarvis-web:v3.0
+    container_name: jarvis_web
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASS_FILE=/run/secrets/redis_pass
+      - POSTGRES_PASS_FILE=/run/secrets/postgres_pass
+      - WEB_SECRET_KEY=${WEB_SECRET_KEY:-change-me-in-production}
+      - DATABASE_URL=${DATABASE_URL:-postgresql+asyncpg://jarvis:jarvis123@postgres:5432/jarvis}
+      - SUPER_ADMIN_USER=${SUPER_ADMIN_USER:-admin}
+      - SUPER_ADMIN_PASS=${SUPER_ADMIN_PASS:-admin123}
+      - LLM_PROVIDER=${LLM_PROVIDER:-gemini}
+      - LLM_MODEL=${LLM_MODEL:-gemini-2.5-flash-preview}
+    networks:
+      - internal_mesh
+      - jarvis_outbound
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+secrets:
+  postgres_pass:
+    file: ./secrets/postgres_pass.txt
+  redis_pass:
+    file: ./secrets/redis_pass.txt
+  telegram_bot_token:
+    file: ./secrets/telegram_bot_token.txt
+  telegram_chat_id:
+    file: ./secrets/telegram_chat_id.txt
+  graph_client_secret:
+    file: ./secrets/graph_client_secret.txt
+
+volumes:
+  postgres_data:
+  redis_data:
+
+  # playwright_cache: (eliminado en v5.0 - sin Playwright)
+
+networks:
+  internal_mesh:
+    internal: true
+  jarvis_outbound:
+    driver: bridge

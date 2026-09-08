@@ -1,0 +1,93 @@
+import os
+import json
+import logging
+import redis.asyncio as redis
+from typing import Optional, Dict, Any
+
+logger = logging.getLogger(__name__)
+
+class RedisTaskBroker:
+    def __init__(self) -> None:
+        """
+        Constructor de alta prioridad en Seguridad por Diseño.
+        Carga la configuración inicial para la sinapsis con el Árbitro.
+        """
+        self.password: Optional[str] = self._load_secret()
+        self.url: str = os.getenv("REDIS_URL", "redis://redis:6379/0")
+        self.client: Optional[redis.Redis] = None
+
+    def _load_secret(self) -> Optional[str]:
+        """
+        Lee el secreto desde Docker Secrets con resiliencia a Line Endings[cite: 25].
+        """
+        secret_path = os.getenv("REDIS_PASS_FILE", "/run/secrets/redis_pass")
+        try:
+            if os.path.exists(secret_path):
+                with open(secret_path, "r", encoding="utf-8") as f:
+                    # splitlines() elimina \n y \r de forma robusta[cite: 25]
+                    lines = f.read().splitlines()
+                    return lines[0] if lines else None
+        except Exception as e:
+            logger.error(f"Error crítico leyendo secreto: {e}")
+        
+        return os.getenv("REDIS_PASS")
+
+    async def connect(self) -> None:
+        """
+        Establece una conexión asíncrona robusta en Python.
+        Configurada con keepalive para evitar el 'Timeout reading from redis'[cite: 24].
+        """
+        if not self.client:
+            try:
+                self.client = redis.Redis(
+                    host="redis", 
+                    port=6379, 
+                    password=self.password, 
+                    decode_responses=True,
+                    # Parámetros de Resiliencia Críticos[cite: 24]
+                    socket_timeout=None,        # No expirar por inactividad en colas largas
+                    socket_keepalive=True,      # Mantener latido de red activo a nivel SO
+                    retry_on_timeout=True,      # Reintento automático ante fluctuaciones
+                    health_check_interval=30    # Verificar salud del socket cada 30s
+                )
+                await self.client.ping()
+                logger.info("📡 Sinapsis Python-Redis establecida con alta resiliencia.")
+            except Exception as e:
+                logger.error(f"❌ Fallo al conectar con el Broker: {e}")
+                raise
+
+    async def push_task(self, queue_name: str, task_data: Dict[str, Any]) -> None:
+        """Serializa de forma segura la tarea como JSON y la empuja a la cola."""
+        if not self.client: await self.connect()
+        payload = json.dumps(task_data)
+        await self.client.lpush(queue_name, payload)
+
+    async def publish(self, queue_name: str, task_data: Dict[str, Any]) -> None:
+        """Alias para publicar mensajes en una cola de Redis (para compatibilidad con notificador)."""
+        await self.push_task(queue_name, task_data)
+
+    async def get_task(self, queue_name: str) -> Optional[Dict[str, Any]]:
+        """Extracción bloqueante y deserialización segura[cite: 24]."""
+        if not self.client: await self.connect()
+        # BRPOP bloquea el proceso hasta que llegue una tarea o ocurra un timeout
+        result = await self.client.brpop(queue_name, timeout=5)
+        if not result:
+            return None
+            
+        try:
+            # FIX: Uso estricto de json.loads para evitar inyección de código[cite: 24]
+            return json.loads(result[1])
+        except json.JSONDecodeError:
+            logger.error(f"Payload inválido en cola {queue_name}. Se esperaba JSON.")
+            return None
+
+    async def acquire_lock(self, task_id: str, owner_id: str, timeout: int = 300) -> bool:
+        """Implementación de bloqueo atómico SETNX para de-duplicación."""
+        if not self.client: await self.connect()
+        lock_key = f"lock:mail:{task_id}"
+        return await self.client.set(lock_key, owner_id, nx=True, ex=timeout)
+
+    async def release_lock(self, task_id: str) -> None:
+        """Libera el bloqueo atómico una vez finalizada la tarea."""
+        if not self.client: await self.connect()
+        await self.client.delete(f"lock:mail:{task_id}")
